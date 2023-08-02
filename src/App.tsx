@@ -7,10 +7,10 @@ import {
   useTexture,
   Cylinder,
   CameraControls,
-  PositionalAudio
+  PositionalAudio,
+  Loader
 } from "@react-three/drei";
-import { useEffect, useRef, useState } from "react";
-// import { useToast } from "./components/ui/use-toast";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useToast } from "components/ui/use-toast";
 import { Button } from "components/ui/button";
 import { Toaster } from "components/ui/toaster";
@@ -121,102 +121,100 @@ const ThreeDComponent = ({
   };
 
   return (
-    <>
-      <Stage
-        preset="rembrandt"
-        intensity={1}
-        environment={"city"}
-        adjustCamera={false}
+    <Stage
+      preset="rembrandt"
+      intensity={1}
+      environment={"city"}
+      adjustCamera={false}
+    >
+      <primitive scale={3} object={gltfRoom.scene} />
+      <primitive
+        ref={skullRef}
+        onPointerOver={() => setIsHoveringSkull(true)}
+        onPointerOut={() => setIsHoveringSkull(false)}
+        onPointerDown={() => setIsSkullClicked((b) => !b)}
+        object={gltfSkull.scene}
+        scale={isHoveringSkull || isSkullClicked ? 2 : 1}
+        position={[15, 5, 0]}
+      />
+
+      <group>
+        <primitive
+          object={gltfRecordPlayer.scene}
+          position={[20, 3, 0]}
+          onPointerOver={() => setIsHoveringRecordPlayer(true)}
+          onPointerOut={() => setIsHoveringRecordPlayer(false)}
+          onClick={handleClickRecordPlayer}
+          rotation={[0, Math.PI / 2, 0]}
+          scale={isHoveringRecordPlayer ? 2.2 : 2}
+        />
+
+        {/* @ts-ignore */}
+        <PositionalAudio
+          ref={positionalAudio1Ref}
+          url={SONG_URL_TAME_IMPALA}
+          distance={1}
+        />
+
+        {/* @ts-ignore */}
+        <PositionalAudio
+          ref={positionalAudio2Ref}
+          url={SONG_URL_BON_IVER}
+          distance={1}
+        />
+      </group>
+
+      <primitive
+        object={gltfDesk.scene}
+        position={[20, 1.4, 0]}
+        scale={2}
+        rotation={[0, Math.PI, 0]}
+      />
+
+      <Cylinder
+        ref={recordRef1}
+        args={[1, 1, 0.01]}
+        scale={0.35}
+        //@ts-ignore
+        position={
+          selectedRecordId === "Tame Impala - Elephant"
+            ? POSITION_RECORD_SELECTED
+            : POSITION_RECORD_UNSELECTED
+        }
+        onPointerDown={() => {
+          if (selectedRecordId !== "Tame Impala - Elephant") {
+            positionalAudio2Ref.current.stop();
+            setIsPlayingSong(false);
+            setSelectedRecordId("Tame Impala - Elephant");
+          }
+        }}
       >
-        <primitive scale={3} object={gltfRoom.scene} />
-        <primitive
-          ref={skullRef}
-          onPointerOver={() => setIsHoveringSkull(true)}
-          onPointerOut={() => setIsHoveringSkull(false)}
-          onPointerDown={() => setIsSkullClicked((b) => !b)}
-          object={gltfSkull.scene}
-          scale={isHoveringSkull || isSkullClicked ? 2 : 1}
-          position={[15, 5, 0]}
-        />
+        <meshStandardMaterial map={textureLonerism} />
+      </Cylinder>
 
-        <group>
-          <primitive
-            object={gltfRecordPlayer.scene}
-            position={[20, 3, 0]}
-            onPointerOver={() => setIsHoveringRecordPlayer(true)}
-            onPointerOut={() => setIsHoveringRecordPlayer(false)}
-            onClick={handleClickRecordPlayer}
-            rotation={[0, Math.PI / 2, 0]}
-            scale={isHoveringRecordPlayer ? 2.2 : 2}
-          />
-
-          {/* @ts-ignore */}
-          <PositionalAudio
-            ref={positionalAudio1Ref}
-            url={SONG_URL_TAME_IMPALA}
-            distance={1}
-          />
-
-          {/* @ts-ignore */}
-          <PositionalAudio
-            ref={positionalAudio2Ref}
-            url={SONG_URL_BON_IVER}
-            distance={1}
-          />
-        </group>
-
-        <primitive
-          object={gltfDesk.scene}
-          position={[20, 1.4, 0]}
-          scale={2}
-          rotation={[0, Math.PI, 0]}
-        />
-
-        <Cylinder
-          ref={recordRef1}
-          args={[1, 1, 0.01]}
-          scale={0.35}
-          //@ts-ignore
-          position={
-            selectedRecordId === "Tame Impala - Elephant"
-              ? POSITION_RECORD_SELECTED
-              : POSITION_RECORD_UNSELECTED
+      <Cylinder
+        ref={recordRef2}
+        onPointerDown={() => {
+          if (selectedRecordId !== "Bon Iver - Skinny Love") {
+            positionalAudio1Ref.current.stop();
+            setIsPlayingSong(false);
+            setSelectedRecordId("Bon Iver - Skinny Love");
           }
-          onPointerDown={() => {
-            if (selectedRecordId !== "Tame Impala - Elephant") {
-              positionalAudio2Ref.current.stop();
-              setIsPlayingSong(false);
-              setSelectedRecordId("Tame Impala - Elephant");
-            }
-          }}
-        >
-          <meshStandardMaterial map={textureLonerism} />
-        </Cylinder>
+        }}
+        args={[1, 1, 0.01]}
+        scale={0.35}
+        //@ts-ignore
+        position={
+          selectedRecordId === "Bon Iver - Skinny Love"
+            ? POSITION_RECORD_SELECTED
+            : POSITION_RECORD_UNSELECTED
+        }
+      >
+        <meshStandardMaterial map={textureBonIver} />
+      </Cylinder>
 
-        <Cylinder
-          ref={recordRef2}
-          onPointerDown={() => {
-            if (selectedRecordId !== "Bon Iver - Skinny Love") {
-              positionalAudio1Ref.current.stop();
-              setIsPlayingSong(false);
-              setSelectedRecordId("Bon Iver - Skinny Love");
-            }
-          }}
-          args={[1, 1, 0.01]}
-          scale={0.35}
-          //@ts-ignore
-          position={
-            selectedRecordId === "Bon Iver - Skinny Love"
-              ? POSITION_RECORD_SELECTED
-              : POSITION_RECORD_UNSELECTED
-          }
-        >
-          <meshStandardMaterial map={textureBonIver} />
-        </Cylinder>
-
-        <CameraControls makeDefault dollyToCursor ref={cameraRef} />
-      </Stage>
-    </>
+      <CameraControls makeDefault dollyToCursor ref={cameraRef} />
+    </Stage>
   );
 };
 
@@ -266,24 +264,33 @@ function App() {
     <div className="w-full h-full dark">
       <Toaster />
       <div className="dark:bg-slate-800 h-full flex justify-center items-center flex-col">
-        <h1 className="text-white text-3xl font-bold mb-2">leo's room</h1>
+        <h1 className="text-white text-3xl font-bold mb-2">My Dope Room</h1>
         <SpotifyAuth />
         <div className="w-[800px] max-w-full h-[800px] relative">
-          <Button
-            className="absolute top-0 right-0 z-10"
-            onClick={() => {
-              setInitialCameraPosition([20, -6, 0]);
-              setInitialCameraTarget([0, -10, 0]);
-            }}
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex justify-center items-center">
+                <h2 className="dark:text-white">Loading Room...</h2>
+                <Loader />
+              </div>
+            }
           >
-            Reset View
-          </Button>
-          <Canvas>
-            <ThreeDComponent
-              position={initialCameraPosition}
-              target={initialCameraTarget}
-            />
-          </Canvas>
+            <Button
+              className="absolute top-0 right-0 z-10"
+              onClick={() => {
+                setInitialCameraPosition([20, -6, 0]);
+                setInitialCameraTarget([0, -10, 0]);
+              }}
+            >
+              Reset View
+            </Button>
+            <Canvas>
+              <ThreeDComponent
+                position={initialCameraPosition}
+                target={initialCameraTarget}
+              />
+            </Canvas>
+          </Suspense>
         </div>
       </div>
     </div>
@@ -316,7 +323,7 @@ const AppRouter = () => {
   }, []);
   return (
     <SpotifyAuthContextProvider isWebPlaybackSDKReady={isWebPlaybackSDKReady}>
-      <RouterProvider router={router} />;
+      <RouterProvider router={router} />
     </SpotifyAuthContextProvider>
   );
 };
