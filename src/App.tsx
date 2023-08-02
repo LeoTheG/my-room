@@ -14,6 +14,13 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "components/ui/use-toast";
 import { Button } from "components/ui/button";
 import { Toaster } from "components/ui/toaster";
+import {
+  RedirectPage,
+  SpotifyAuth,
+  SpotifyAuthContextProvider,
+  useSpotifyAuth
+} from "components/SpotifyAuth";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 const POSITION_RECORD_SELECTED = [20, 3.25, 0.1];
 const POSITION_RECORD_UNSELECTED = [20, 3.0, 1];
@@ -214,6 +221,40 @@ const ThreeDComponent = ({
 };
 
 function App() {
+  const { accessToken, isWebPlaybackSDKReady } = useSpotifyAuth();
+  const [player, setPlayer] = useState<any>(null);
+
+  useEffect(() => {
+    console.log("access token changed", accessToken);
+
+    if (accessToken) {
+      if (!window.Spotify) {
+        console.log("spotify not loaded yet");
+        return;
+      }
+      const player = new window.Spotify.Player({
+        name: "Web Playback SDK",
+        getOAuthToken: (cb: any) => {
+          console.log("passing in ", accessToken);
+          cb(accessToken);
+        },
+        volume: 0.5
+      });
+
+      setPlayer(player);
+
+      player.addListener("ready", ({ device_id }: any) => {
+        console.log("Ready with Device ID", device_id);
+      });
+
+      player.addListener("not_ready", ({ device_id }: any) => {
+        console.log("Device ID has gone offline", device_id);
+      });
+
+      player.connect();
+    }
+  }, [accessToken]);
+
   const [initialCameraPosition, setInitialCameraPosition] = useState<
     [number, number, number]
   >([20, -6, 0]);
@@ -226,6 +267,7 @@ function App() {
       <Toaster />
       <div className="dark:bg-slate-800 h-full flex justify-center items-center flex-col">
         <h1 className="text-white text-3xl font-bold mb-2">leo's room</h1>
+        <SpotifyAuth />
         <div className="w-[800px] max-w-full h-[800px] relative">
           <Button
             className="absolute top-0 right-0 z-10"
@@ -248,4 +290,46 @@ function App() {
   );
 }
 
-export default App;
+// define spotify window global
+declare global {
+  interface Window {
+    Spotify: any;
+    onSpotifyWebPlaybackSDKReady: any;
+  }
+}
+
+const AppRouter = () => {
+  const [isWebPlaybackSDKReady, setIsWebPlaybackSDKReady] = useState(false);
+  useEffect(() => {
+    (window as any).onSpotifyWebPlaybackSDKReady = () => {
+      setIsWebPlaybackSDKReady(true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.Spotify) {
+      const scriptTag = document.createElement("script");
+      scriptTag.src = "https://sdk.scdn.co/spotify-player.js";
+
+      document.head!.appendChild(scriptTag);
+    }
+  }, []);
+  return (
+    <SpotifyAuthContextProvider isWebPlaybackSDKReady={isWebPlaybackSDKReady}>
+      <RouterProvider router={router} />;
+    </SpotifyAuthContextProvider>
+  );
+};
+
+export default AppRouter;
+
+const router = createBrowserRouter([
+  {
+    path: "/spotify-auth-redirect",
+    element: <RedirectPage />
+  },
+  {
+    path: "/",
+    element: <App />
+  }
+]);
