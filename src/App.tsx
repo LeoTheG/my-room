@@ -18,9 +18,11 @@ import {
   RedirectPage,
   SpotifyAuth,
   SpotifyAuthContextProvider,
+  getUsersTopSongs,
   useSpotifyAuth
 } from "components/SpotifyAuth";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Expand } from "lucide-react";
 
 const POSITION_RECORD_SELECTED = [20, 3.25, 0.1];
 const POSITION_RECORD_UNSELECTED = [20, 3.0, 1];
@@ -218,22 +220,61 @@ const ThreeDComponent = ({
   );
 };
 
+const track = {
+  name: "",
+  album: {
+    images: [{ url: "" }]
+  },
+  artists: [{ name: "" }]
+};
+
 function App() {
-  const { accessToken, isWebPlaybackSDKReady } = useSpotifyAuth();
+  const { accessToken, setAccessToken } = useSpotifyAuth();
   const [player, setPlayer] = useState<any>(null);
 
-  useEffect(() => {
-    console.log("access token changed", accessToken);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState(track);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [topSongs, setTopSongs] = useState<any[]>([]);
 
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      const accessToken = localStorage.getItem("access_token");
+      console.log({ accessToken });
+
+      // check if access token is valid
+      if (accessToken) {
+        try {
+          const response = await getUsersTopSongs(accessToken);
+          if (response.error) {
+            throw new Error(response.error.message);
+          }
+          setAccessToken(accessToken);
+        } catch (e) {
+          console.error(e);
+          console.log(
+            "Unable to retrieve top songs - access token might be invalid"
+          );
+          localStorage.setItem("access_token", "");
+        }
+      }
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [setAccessToken]);
+
+  useEffect(() => {
     if (accessToken) {
       if (!window.Spotify) {
         console.log("spotify not loaded yet");
         return;
       }
       const player = new window.Spotify.Player({
-        name: "Web Playback SDK",
+        name: "My Dope Room",
         getOAuthToken: (cb: any) => {
-          console.log("passing in ", accessToken);
           cb(accessToken);
         },
         volume: 0.5
@@ -242,16 +283,57 @@ function App() {
       setPlayer(player);
 
       player.addListener("ready", ({ device_id }: any) => {
+        setIsPlayerReady(true);
         console.log("Ready with Device ID", device_id);
       });
 
       player.addListener("not_ready", ({ device_id }: any) => {
+        setIsPlayerReady(false);
         console.log("Device ID has gone offline", device_id);
+      });
+
+      player.addListener("player_state_changed", (state: any) => {
+        console.log("state changed", state);
+        if (!state) {
+          return;
+        }
+
+        setCurrentTrack(state.track_window.current_track);
+        setIsPaused(state.paused);
+
+        player.getCurrentState().then((state: any) => {
+          !state ? setIsActive(false) : setIsActive(true);
+        });
       });
 
       player.connect();
     }
   }, [accessToken]);
+
+  useEffect(() => {
+    async function playSong() {
+      const response = await fetch(
+        "https://api.spotify.com/v1/me/player/play",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            uris: [
+              "spotify:track:5nTtCOCds6I0PHMNtqelas",
+              "spotify:track:1nZzRJbFvCEct3uzu04ZoL"
+            ],
+            position_ms: 1
+          }),
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if (isPlayerReady && accessToken) {
+      playSong();
+    }
+  }, [isPlayerReady, accessToken]);
 
   const [initialCameraPosition, setInitialCameraPosition] = useState<
     [number, number, number]
@@ -259,14 +341,33 @@ function App() {
   const [initialCameraTarget, setInitialCameraTarget] = useState<
     [number, number, number]
   >([0, -10, 0]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
     <div className="w-full h-full dark">
       <Toaster />
       <div className="dark:bg-slate-800 h-full flex justify-center items-center flex-col">
-        <h1 className="text-white text-3xl font-bold mb-2">My Dope Room</h1>
-        <SpotifyAuth />
-        <div className="w-[800px] max-w-full h-[800px] relative">
+        {!isFullscreen && (
+          <>
+            <h1 className="text-white text-3xl font-bold mb-2">My Dope Room</h1>
+
+            {!accessToken && <SpotifyAuth />}
+
+            {accessToken && !currentTrack.name && (
+              <h2 className="dark:text-white mb-1">
+                Please connect to the device "My Dope Room" on your Spotify app
+              </h2>
+            )}
+          </>
+        )}
+
+        <div
+          className="w-[800px] max-w-full h-[800px] relative"
+          style={{
+            width: isFullscreen ? "100vw" : undefined,
+            height: isFullscreen ? "100vh" : undefined
+          }}
+        >
           <Suspense
             fallback={
               <div className="w-full h-full flex justify-center items-center">
@@ -284,6 +385,16 @@ function App() {
             >
               Reset View
             </Button>
+
+            <div className="absolute bottom-1 right-1 z-10 cursor-pointer">
+              <Expand
+                onClick={() => {
+                  setIsFullscreen((b) => !b);
+                }}
+                className="w-6 h-6 text-gray-50 hover:text-white"
+              />
+            </div>
+
             <Canvas>
               <ThreeDComponent
                 position={initialCameraPosition}
@@ -291,6 +402,39 @@ function App() {
               />
             </Canvas>
           </Suspense>
+
+          {currentTrack.name && (
+            <div className="absolute bottom-0">
+              <div className="flex p-2">
+                <div className="flex flex-col">
+                  <img
+                    src={currentTrack.album.images[0].url}
+                    className="w-16 h-16 rounded-full"
+                    alt=""
+                  />
+
+                  <div className="now-playing__side text-white">
+                    <div className="now-playing__name ">
+                      {currentTrack.name}
+                    </div>
+
+                    <div className="now-playing__artist">
+                      {currentTrack.artists[0].name}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  className="ml-4"
+                  onClick={() => {
+                    player.togglePlay();
+                  }}
+                >
+                  {isPaused ? "Play" : "Pause"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

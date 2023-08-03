@@ -1,6 +1,7 @@
 import React, { PropsWithChildren, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
+import spotifyIconSVG from "../assets/Spotify_icon.svg";
 
 // public key
 const clientId = "825061040e06449781114c19a0af4732";
@@ -33,9 +34,10 @@ export const SpotifyAuth = () => {
   };
 
   return (
-    <div>
-      <Button onClick={handleLogin}>Spotify Connect</Button>
-    </div>
+    <Button onClick={handleLogin} className="gap-2 mt-2 mb-2">
+      <img src={spotifyIconSVG} className="w-6 h-6" alt="spotify icon" />
+      Connect with Spotify
+    </Button>
   );
 };
 
@@ -165,8 +167,7 @@ async function generateCodeChallenge(codeVerifier: string) {
   return base64encode(digest);
 }
 
-// unused
-const getUsersTopSongs = async (accessToken: any) => {
+export const getUsersTopSongs = async (accessToken: any) => {
   accessToken = localStorage.getItem("access_token");
   const response = await fetch("https://api.spotify.com/v1/me/top/tracks", {
     headers: {
@@ -176,9 +177,10 @@ const getUsersTopSongs = async (accessToken: any) => {
 
   const data = await response.json();
   console.log({ data });
+  return data;
 };
 
-async function getProfile(accessToken: any) {
+export async function getProfile(accessToken: any) {
   accessToken = localStorage.getItem("access_token");
 
   const response = await fetch("https://api.spotify.com/v1/me", {
