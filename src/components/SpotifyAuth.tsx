@@ -6,8 +6,7 @@ import spotifyIconSVG from "../assets/Spotify_icon.svg";
 // public key
 const clientId = "825061040e06449781114c19a0af4732";
 
-// todo change for production
-const redirectUri = "http://localhost:3000/spotify-auth-redirect";
+const redirectUri = window.location.origin + "/spotify-auth-redirect";
 
 export const SpotifyAuth = () => {
   const handleLogin = async () => {
@@ -15,7 +14,8 @@ export const SpotifyAuth = () => {
 
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = generateRandomString(16);
-    const scope = "user-read-private user-read-email user-top-read streaming";
+    // const scope = "user-read-private user-read-email user-top-read streaming";
+    const scope = "user-top-read streaming";
 
     localStorage.setItem("code_verifier", codeVerifier);
 
@@ -176,7 +176,6 @@ export const getUsersTopSongs = async (accessToken: any) => {
   });
 
   const data = await response.json();
-  console.log({ data });
   return data;
 };
 
@@ -190,5 +189,5 @@ export async function getProfile(accessToken: any) {
   });
 
   const data = await response.json();
-  console.log({ data });
+  return data;
 }

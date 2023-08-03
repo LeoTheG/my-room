@@ -7,7 +7,6 @@ import {
   useTexture,
   Cylinder,
   CameraControls,
-  PositionalAudio,
   Loader
 } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -23,27 +22,114 @@ import {
 } from "components/SpotifyAuth";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Expand } from "lucide-react";
+import { ISpotifyItem } from "types";
+import { Skeleton } from "components/ui/skeleton";
 
-const POSITION_RECORD_SELECTED = [20, 3.25, 0.1];
-const POSITION_RECORD_UNSELECTED = [20, 3.0, 1];
+const POSITION_RECORD_SELECTED: [number, number, number] = [20.03, 3.25, 0.1];
 
-const SONG_URL_BON_IVER = "/Bon Iver - Skinny Love.mp3";
-const SONG_URL_TAME_IMPALA = "/Tame Impala - Elephant.mp3";
+const VinylRecordWall = ({
+  songs,
+  onClickRecord,
+  currentTrack,
+  isSongPlaying
+}: {
+  songs: ISpotifyItem[];
+  onClickRecord: (recordId: string) => void;
+  currentTrack: ISpotifyItem | null;
+  isSongPlaying: boolean;
+}) => {
+  return (
+    <group>
+      {songs.map((song, index) => {
+        // want 4 rows of 5
+        const row = Math.floor(index / 5);
+        const column = index % 5;
 
-type RecordID = "Tame Impala - Elephant" | "Bon Iver - Skinny Love";
+        const x = 18 + row * 0.5;
+        const y = 6 + row * -0.5;
+        const z = -1.5 + column * 0.75;
+
+        let position: [number, number, number] = [x, y, z];
+
+        const hasSameId = currentTrack?.id === song.id;
+        const hasSameName = currentTrack?.name === song.name;
+
+        const isCurrentTrack = hasSameId || hasSameName;
+
+        if (isCurrentTrack) {
+          position = POSITION_RECORD_SELECTED;
+        }
+
+        return (
+          <VinylRecord
+            isStandingUp={!isCurrentTrack}
+            isPlaying={isCurrentTrack && isSongPlaying}
+            key={song.id}
+            url={song.album.images[0].url}
+            position={position}
+            onClick={() => onClickRecord(song.id)}
+          />
+        );
+      })}
+    </group>
+  );
+};
+
+const VinylRecord = ({
+  url,
+  position,
+  isPlaying,
+  onClick,
+  isStandingUp
+}: {
+  url: string;
+  position: [number, number, number];
+  onClick: () => void;
+  isPlaying: boolean;
+  isStandingUp?: boolean;
+}) => {
+  const [isHovering, setIsHovering] = useState(false);
+
+  const texture = useTexture(url);
+  const recordRef = useRef<any>(null);
+
+  useFrame(() => {
+    if (isPlaying) {
+      recordRef.current.rotation.y -= 0.01;
+    }
+  });
+
+  return (
+    <Cylinder
+      ref={recordRef}
+      onPointerDown={onClick}
+      onPointerOver={() => setIsHovering(true)}
+      onPointerOut={() => setIsHovering(false)}
+      args={[1, 1, 0.01]}
+      scale={isHovering ? 0.4 : 0.35}
+      position={position}
+      rotation={isStandingUp ? [0, Math.PI, Math.PI / 2] : [0, 0, 0]}
+    >
+      <meshStandardMaterial map={texture} />
+    </Cylinder>
+  );
+};
 
 const ThreeDComponent = ({
+  songs,
   position,
-  target
+  target,
+  currentTrack,
+  onClickRecord,
+  isSongPlaying
 }: {
   position: [number, number, number];
   target: [number, number, number];
+  songs?: ISpotifyItem[];
+  currentTrack: ISpotifyItem | null;
+  onClickRecord: (id: string) => void;
+  isSongPlaying: boolean;
 }) => {
-  const { toast } = useToast();
-  const [selectedRecordId, setSelectedRecordId] = useState<RecordID>(
-    "Tame Impala - Elephant"
-  );
-
   const gltfSkull = useGLTF("skull.glb");
   const gltfRoom = useGLTF("modern_bedroom.glb");
   const gltfRecordPlayer = useGLTF("vinyl_player.glb");
@@ -51,16 +137,10 @@ const ThreeDComponent = ({
 
   const [isSkullClicked, setIsSkullClicked] = useState(false);
 
-  // const gltfRecord = useGLTF("12_vinyl_record.glb");
   const [isHoveringSkull, setIsHoveringSkull] = useState(false);
-  const [isHoveringRecordPlayer, setIsHoveringRecordPlayer] = useState(false);
 
   const cameraRef = useRef<CameraControls>(null);
   const skullRef = useRef<any>(null);
-  const [isPlayingSong, setIsPlayingSong] = useState(false);
-
-  const textureLonerism = useTexture("vinyl_lonerism.png");
-  const textureBonIver = useTexture("vinyl_bon_iver.png");
 
   useFrame(() => {
     if (skullRef.current) {
@@ -74,53 +154,6 @@ const ThreeDComponent = ({
       cameraRef.current.setTarget(target[0], target[1], target[2]);
     }
   }, [cameraRef, position, target]);
-
-  const recordRef1 = useRef<any>(null);
-  const recordRef2 = useRef<any>(null);
-
-  useEffect(() => {
-    if (isPlayingSong) {
-      toast({
-        title: "Now Playing",
-        description: selectedRecordId
-      });
-    }
-  }, [isPlayingSong, selectedRecordId, toast]);
-
-  useFrame(() => {
-    if (isPlayingSong) {
-      if (selectedRecordId === "Tame Impala - Elephant") {
-        recordRef1.current.rotation.y -= 0.01;
-      } else if (selectedRecordId === "Bon Iver - Skinny Love") {
-        recordRef2.current.rotation.y -= 0.01;
-      }
-    }
-  });
-
-  const positionalAudio1Ref = useRef<any>(null);
-  const positionalAudio2Ref = useRef<any>(null);
-
-  const handleClickRecordPlayer = () => {
-    if (selectedRecordId === "Bon Iver - Skinny Love") {
-      if (!positionalAudio2Ref.current.isPlaying) {
-        positionalAudio2Ref.current.play();
-        // increase volume because this song specifically is quiet
-        positionalAudio2Ref.current.setVolume(10);
-        setIsPlayingSong(true);
-      } else {
-        positionalAudio2Ref.current.pause();
-        setIsPlayingSong(false);
-      }
-    } else if (selectedRecordId === "Tame Impala - Elephant") {
-      if (!positionalAudio1Ref.current.isPlaying) {
-        positionalAudio1Ref.current.play();
-        setIsPlayingSong(true);
-      } else {
-        positionalAudio1Ref.current.pause();
-        setIsPlayingSong(false);
-      }
-    }
-  };
 
   return (
     <Stage
@@ -136,7 +169,7 @@ const ThreeDComponent = ({
         onPointerOut={() => setIsHoveringSkull(false)}
         onPointerDown={() => setIsSkullClicked((b) => !b)}
         object={gltfSkull.scene}
-        scale={isHoveringSkull || isSkullClicked ? 2 : 1}
+        scale={!songs && (isHoveringSkull || isSkullClicked) ? 2 : 1}
         position={[15, 5, 0]}
       />
 
@@ -144,25 +177,8 @@ const ThreeDComponent = ({
         <primitive
           object={gltfRecordPlayer.scene}
           position={[20, 3, 0]}
-          onPointerOver={() => setIsHoveringRecordPlayer(true)}
-          onPointerOut={() => setIsHoveringRecordPlayer(false)}
-          onClick={handleClickRecordPlayer}
           rotation={[0, Math.PI / 2, 0]}
-          scale={isHoveringRecordPlayer ? 2.2 : 2}
-        />
-
-        {/* @ts-ignore */}
-        <PositionalAudio
-          ref={positionalAudio1Ref}
-          url={SONG_URL_TAME_IMPALA}
-          distance={1}
-        />
-
-        {/* @ts-ignore */}
-        <PositionalAudio
-          ref={positionalAudio2Ref}
-          url={SONG_URL_BON_IVER}
-          distance={1}
+          scale={2}
         />
       </group>
 
@@ -170,78 +186,47 @@ const ThreeDComponent = ({
         object={gltfDesk.scene}
         position={[20, 1.4, 0]}
         scale={2}
-        rotation={[0, Math.PI, 0]}
+        rotation={[0, 0, 0]}
       />
 
-      <Cylinder
-        ref={recordRef1}
-        args={[1, 1, 0.01]}
-        scale={0.35}
-        //@ts-ignore
-        position={
-          selectedRecordId === "Tame Impala - Elephant"
-            ? POSITION_RECORD_SELECTED
-            : POSITION_RECORD_UNSELECTED
-        }
-        onPointerDown={() => {
-          if (selectedRecordId !== "Tame Impala - Elephant") {
-            positionalAudio2Ref.current.stop();
-            setIsPlayingSong(false);
-            setSelectedRecordId("Tame Impala - Elephant");
-          }
-        }}
-      >
-        <meshStandardMaterial map={textureLonerism} />
-      </Cylinder>
-
-      <Cylinder
-        ref={recordRef2}
-        onPointerDown={() => {
-          if (selectedRecordId !== "Bon Iver - Skinny Love") {
-            positionalAudio1Ref.current.stop();
-            setIsPlayingSong(false);
-            setSelectedRecordId("Bon Iver - Skinny Love");
-          }
-        }}
-        args={[1, 1, 0.01]}
-        scale={0.35}
-        //@ts-ignore
-        position={
-          selectedRecordId === "Bon Iver - Skinny Love"
-            ? POSITION_RECORD_SELECTED
-            : POSITION_RECORD_UNSELECTED
-        }
-      >
-        <meshStandardMaterial map={textureBonIver} />
-      </Cylinder>
+      {songs && (
+        <VinylRecordWall
+          currentTrack={currentTrack}
+          onClickRecord={onClickRecord}
+          songs={songs}
+          isSongPlaying={isSongPlaying}
+        />
+      )}
 
       <CameraControls makeDefault dollyToCursor ref={cameraRef} />
     </Stage>
   );
 };
 
-const track = {
-  name: "",
-  album: {
-    images: [{ url: "" }]
-  },
-  artists: [{ name: "" }]
-};
-
 function App() {
   const { accessToken, setAccessToken } = useSpotifyAuth();
   const [player, setPlayer] = useState<any>(null);
+  const { toast } = useToast();
 
   const [isPaused, setIsPaused] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState(track);
+  const [currentTrack, setCurrentTrack] = useState<ISpotifyItem | null>(null);
+  // todo?: use this
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [topSongs, setTopSongs] = useState<any[]>([]);
+  const [topSongs, setTopSongs] = useState<ISpotifyItem[]>([]);
+
+  const [initialCameraPosition, setInitialCameraPosition] = useState<
+    [number, number, number]
+  >([20, -6, 0]);
+  const [initialCameraTarget, setInitialCameraTarget] = useState<
+    [number, number, number]
+  >([0, -10, 0]);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(async () => {
       const accessToken = localStorage.getItem("access_token");
-      console.log({ accessToken });
 
       // check if access token is valid
       if (accessToken) {
@@ -250,6 +235,11 @@ function App() {
           if (response.error) {
             throw new Error(response.error.message);
           }
+
+          const items = response.items as ISpotifyItem[];
+
+          setTopSongs(items);
+
           setAccessToken(accessToken);
         } catch (e) {
           console.error(e);
@@ -269,7 +259,6 @@ function App() {
   useEffect(() => {
     if (accessToken) {
       if (!window.Spotify) {
-        console.log("spotify not loaded yet");
         return;
       }
       const player = new window.Spotify.Player({
@@ -284,16 +273,13 @@ function App() {
 
       player.addListener("ready", ({ device_id }: any) => {
         setIsPlayerReady(true);
-        console.log("Ready with Device ID", device_id);
       });
 
       player.addListener("not_ready", ({ device_id }: any) => {
         setIsPlayerReady(false);
-        console.log("Device ID has gone offline", device_id);
       });
 
       player.addListener("player_state_changed", (state: any) => {
-        console.log("state changed", state);
         if (!state) {
           return;
         }
@@ -303,6 +289,7 @@ function App() {
 
         player.getCurrentState().then((state: any) => {
           !state ? setIsActive(false) : setIsActive(true);
+          setIsPaused(state.paused);
         });
       });
 
@@ -310,38 +297,69 @@ function App() {
     }
   }, [accessToken]);
 
-  useEffect(() => {
-    async function playSong() {
-      const response = await fetch(
-        "https://api.spotify.com/v1/me/player/play",
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            uris: [
-              "spotify:track:5nTtCOCds6I0PHMNtqelas",
-              "spotify:track:1nZzRJbFvCEct3uzu04ZoL"
-            ],
-            position_ms: 1
-          }),
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-    }
-    if (isPlayerReady && accessToken) {
-      playSong();
-    }
-  }, [isPlayerReady, accessToken]);
+  const handleClickRecord = (id: string) => {
+    const record = topSongs.find((song) => song.id === id);
+    if (!isActive) return;
 
-  const [initialCameraPosition, setInitialCameraPosition] = useState<
-    [number, number, number]
-  >([20, -6, 0]);
-  const [initialCameraTarget, setInitialCameraTarget] = useState<
-    [number, number, number]
-  >([0, -10, 0]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+    // check if connected to spotify
+    if (!currentTrack?.name) {
+      toast({
+        title: "Please connect to Spotify",
+        description: "Please connect to Spotify to play music"
+      });
+      return;
+    }
+
+    const hasSameId = currentTrack?.id === id;
+    const hasSameName = currentTrack?.name === record?.name;
+
+    if (hasSameId || hasSameName) {
+      if (isPaused) {
+        player.resume();
+        setIsPaused(false);
+      } else {
+        player.pause();
+        setIsPaused(true);
+      }
+    } else {
+      playSong(`spotify:track:${id}`)
+        .then(() => {
+          setIsPaused(false);
+        })
+        .catch((e) => {
+          // check error code 401
+          if (e.status === 401) {
+            toast({
+              title: "Please connect to Spotify",
+              description: "Please connect to Spotify to play music"
+            });
+
+            setAccessToken("");
+          }
+        });
+    }
+  };
+
+  async function playSong(uri: string) {
+    try {
+      await fetch("https://api.spotify.com/v1/me/player/play", {
+        method: "PUT",
+        body: JSON.stringify({
+          uris: [uri],
+          position_ms: 1
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
+      });
+    } catch (e) {
+      toast({
+        title: "Error playing song",
+        description: "There was an error playing the song"
+      });
+    }
+  }
 
   return (
     <div className="w-full h-full dark">
@@ -353,8 +371,8 @@ function App() {
 
             {!accessToken && <SpotifyAuth />}
 
-            {accessToken && !currentTrack.name && (
-              <h2 className="dark:text-white mb-1">
+            {accessToken && !currentTrack?.name && (
+              <h2 className="dark:text-white mb-1 text-center">
                 Please connect to the device "My Dope Room" on your Spotify app
               </h2>
             )}
@@ -362,16 +380,17 @@ function App() {
         )}
 
         <div
-          className="w-[800px] max-w-full h-[800px] relative"
+          className="w-full max-w-full h-[300px] relative md:w-[800px] md:h-[800px] "
           style={{
             width: isFullscreen ? "100vw" : undefined,
-            height: isFullscreen ? "100vh" : undefined
+            height: isFullscreen ? "-webkit-fill-available" : undefined
           }}
         >
           <Suspense
             fallback={
               <div className="w-full h-full flex justify-center items-center">
-                <h2 className="dark:text-white">Loading Room...</h2>
+                {/* <h2 className="dark:text-white">Loading Room...</h2> */}
+                <Skeleton className="w-full h-full" />
                 <Loader />
               </div>
             }
@@ -397,13 +416,17 @@ function App() {
 
             <Canvas>
               <ThreeDComponent
+                songs={topSongs}
                 position={initialCameraPosition}
                 target={initialCameraTarget}
+                currentTrack={currentTrack}
+                onClickRecord={handleClickRecord}
+                isSongPlaying={!isPaused}
               />
             </Canvas>
           </Suspense>
 
-          {currentTrack.name && (
+          {currentTrack?.name && (
             <div className="absolute bottom-0">
               <div className="flex p-2">
                 <div className="flex flex-col">
@@ -440,15 +463,6 @@ function App() {
     </div>
   );
 }
-
-// define spotify window global
-declare global {
-  interface Window {
-    Spotify: any;
-    onSpotifyWebPlaybackSDKReady: any;
-  }
-}
-
 const AppRouter = () => {
   const [isWebPlaybackSDKReady, setIsWebPlaybackSDKReady] = useState(false);
   useEffect(() => {
