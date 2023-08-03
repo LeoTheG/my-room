@@ -212,7 +212,7 @@ function App() {
   const [isActive, setIsActive] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<ISpotifyItem | null>(null);
   // todo?: use this
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  // const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [topSongs, setTopSongs] = useState<ISpotifyItem[]>([]);
 
   const [initialCameraPosition, setInitialCameraPosition] = useState<
@@ -272,11 +272,11 @@ function App() {
       setPlayer(player);
 
       player.addListener("ready", ({ device_id }: any) => {
-        setIsPlayerReady(true);
+        // setIsPlayerReady(true);
       });
 
       player.addListener("not_ready", ({ device_id }: any) => {
-        setIsPlayerReady(false);
+        // setIsPlayerReady(false);
       });
 
       player.addListener("player_state_changed", (state: any) => {
