@@ -14,4 +14,4 @@ Users interact with the vinyl records to play songs.
 
 - favicon from https://emojitofavicon.com/
 
-<img src="https://github.com/LeoTheG/my-room/assets/6187214/1c528c4e-3d35-44e9-aa71-b6dc21627e96" width="500px" />
+![my-dope-room-2](https://github.com/LeoTheG/my-room/assets/6187214/50093197-d959-4c7c-b5a7-9d0ac3972e22)
