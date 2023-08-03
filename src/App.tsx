@@ -21,9 +21,15 @@ import {
   useSpotifyAuth
 } from "components/SpotifyAuth";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { Expand } from "lucide-react";
+import { Expand, Info } from "lucide-react";
 import { ISpotifyItem } from "types";
 import { Skeleton } from "components/ui/skeleton";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@radix-ui/react-popover";
+import imgTutorial from "./assets/tutorial-1.png";
 
 const POSITION_RECORD_SELECTED: [number, number, number] = [20.03, 3.25, 0.1];
 
@@ -103,7 +109,6 @@ const VinylRecord = ({
     <Cylinder
       ref={recordRef}
       onClick={onClick}
-      onPointerDown={onClick}
       onPointerOver={() => setIsHovering(true)}
       onPointerOut={() => setIsHovering(false)}
       args={[1, 1, 0.01]}
@@ -280,7 +285,7 @@ function App() {
         // setIsPlayerReady(false);
       });
 
-      player.addListener("player_state_changed", (state: any) => {
+      const handlePlayerStateChange = (state: any) => {
         if (!state) {
           return;
         }
@@ -292,7 +297,9 @@ function App() {
           !state ? setIsActive(false) : setIsActive(true);
           setIsPaused(state.paused);
         });
-      });
+      };
+
+      player.addListener("player_state_changed", handlePlayerStateChange);
 
       player.connect();
     }
@@ -373,9 +380,25 @@ function App() {
             {!accessToken && <SpotifyAuth />}
 
             {accessToken && !currentTrack?.name && (
-              <h2 className="dark:text-white mb-1 text-center">
-                Please connect to the device "My Dope Room" on your Spotify app
-              </h2>
+              <div className="flex gap-2 items-center mb-2">
+                <h2 className="dark:text-white mb-1 text-center">
+                  Please connect to the device "My Dope Room" on your Spotify
+                  app.
+                </h2>
+
+                <Popover>
+                  <PopoverTrigger>
+                    <Info color="white" />
+                  </PopoverTrigger>
+                  <PopoverContent className="z-[100]">
+                    <img
+                      src={imgTutorial}
+                      className="w-[300px] h-auto"
+                      alt="how to connect device"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             )}
           </>
         )}
