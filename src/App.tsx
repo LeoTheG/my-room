@@ -102,6 +102,7 @@ const VinylRecord = ({
   return (
     <Cylinder
       ref={recordRef}
+      onClick={onClick}
       onPointerDown={onClick}
       onPointerOver={() => setIsHovering(true)}
       onPointerOut={() => setIsHovering(false)}
