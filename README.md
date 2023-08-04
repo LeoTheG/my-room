@@ -3,6 +3,12 @@
 An immersive 3D browser-based room. Users connect their spotify accounts to see their top played songs represented as vinyl records.
 Users interact with the vinyl records to play songs.
 
+## Important Note
+
+Because the app is in development mode, only users that have been added manually by email can connect with the Spotify web sdk.
+
+So if you'd like to try the app, ping me somewhere like LinkedIn.
+
 ## Spotify Developer API notes
 
 - create an app in spotify for developers section
